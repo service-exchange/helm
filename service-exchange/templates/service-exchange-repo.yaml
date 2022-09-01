@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-exchange-repo-manager
+  labels:
+    app: service-exchange
+    component: service-exchange-repo-manager
+    version: {{ .Values.version }}
+spec:
+  selector:
+    app: service-exchange
+    component: service-exchange-repo-manager
+  ports:
+  - name: service-exchange-repo-manager
+    protocol: TCP
+    port: 9101
+    targetPort: 9101
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: service-exchange-repo-manager-deployment
+  labels:
+    app: service-exchange
+    component: service-exchange-repo-manager
+    version: {{ .Values.version }}
+spec:
+  selector:
+    matchLabels:
+      app: service-exchange
+      component: service-exchange-repo-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: service-exchange
+        component: service-exchange-repo-manager
+        version: {{ .Values.version }}
+    spec:
+      initContainers:
+      - name: wait-mysql
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.mysql.host }}.{{ .Release.Namespace }}.svc {{ .Values.mysql.service_port }}; do echo "waiting for mysql"; sleep 2; done;']
+      - name: wait-etcd
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.etcd.host }}.{{ .Release.Namespace }}.svc {{ .Values.etcd.service_port }}; do echo "waiting for etcd"; sleep 2; done;']
+      containers:
+      - name: service-exchange-repo-manager
+        image: {{ .Values.image }}
+        imagePullPolicy: {{ .Values.image_pull_policy }}
+        command:
+          - repo-manager
+        ports:
+        - containerPort: 9101
+          name: repo-manager
+        env:
+        - name: service_exchange_GRPC_SHOW_ERROR_CAUSE
+          value: {{ .Values.grpc_show_error_cause | quote }}
+        - name: service_exchange_LOG_LEVEL
+          value: {{ .Values.service_exchange_log_level }}
+        - name: service_exchange_MYSQL_DATABASE
+          value: "repo"
+        - name: service_exchange_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password.txt
+              name: mysql-pass
+        resources:
+          limits:
+            cpu: {{ .Values.cpu_limits }}m
+            memory: {{ .Values.memory_limits }}Mi
+          requests:
+            cpu: {{ .Values.cpu_requests }}m
+            memory: {{ .Values.memory_requests }}Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-exchange-repo-indexer
+  labels:
+    app: service-exchange
+    component: service-exchange-repo-indexer
+    version: {{ .Values.version }}
+spec:
+  selector:
+    app: service-exchange
+    component: service-exchange-repo-indexer
+  ports:
+  - name: service-exchange-repo-indexer
+    protocol: TCP
+    port: 9108
+    targetPort: 9108
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: service-exchange-repo-indexer-deployment
+  labels:
+    app: service-exchange
+    component: service-exchange-repo-indexer
+    version: {{ .Values.version }}
+spec:
+  selector:
+    matchLabels:
+      app: service-exchange
+      component: service-exchange-repo-indexer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: service-exchange
+        component: service-exchange-repo-indexer
+        version: {{ .Values.version }}
+    spec:
+      initContainers:
+      - name: wait-mysql
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.mysql.host }}.{{ .Release.Namespace }}.svc {{ .Values.mysql.service_port }}; do echo "waiting for mysql"; sleep 2; done;']
+      - name: wait-etcd
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.etcd.host }}.{{ .Release.Namespace }}.svc {{ .Values.etcd.service_port }}; do echo "waiting for etcd"; sleep 2; done;']
+      containers:
+      - name: service-exchange-repo-indexer
+        image: {{ .Values.image }}
+        imagePullPolicy: {{ .Values.image_pull_policy }}
+        command:
+          - repo-indexer
+        ports:
+        - containerPort: 9108
+          name: repo-indexer
+        env:
+        - name: service_exchange_GRPC_SHOW_ERROR_CAUSE
+          value: {{ .Values.grpc_show_error_cause | quote }}
+        - name: service_exchange_LOG_LEVEL
+          value: {{ .Values.service_exchange_log_level }}
+        - name: service_exchange_MYSQL_DATABASE
+          value: "repo"
+        - name: service_exchange_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password.txt
+              name: mysql-pass
+        resources:
+          limits:
+            cpu: {{ .Values.cpu_limits }}m
+            memory: {{ .Values.memory_limits }}Mi
+          requests:
+            cpu: {{ .Values.cpu_requests }}m
+            memory: {{ .Values.memory_requests }}Mi

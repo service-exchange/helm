@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-exchange-app-manager
+  labels:
+    app: service-exchange
+    component: service-exchange-app-manager
+    version: {{ .Values.version }}
+spec:
+  selector:
+    app: service-exchange
+    component: service-exchange-app-manager
+  ports:
+  - name: service-exchange-app-manager
+    protocol: TCP
+    port: 9102
+    targetPort: 9102
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: service-exchange-app-manager-deployment
+  labels:
+    app: service-exchange
+    component: service-exchange-app-manager
+    version: {{ .Values.version }}
+spec:
+  selector:
+    matchLabels:
+      app: service-exchange
+      component: service-exchange-app-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: service-exchange
+        component: service-exchange-app-manager
+        version: {{ .Values.version }}
+    spec:
+      initContainers:
+      - name: wait-mysql
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.mysql.host }}.{{ .Release.Namespace }}.svc {{ .Values.mysql.service_port }}; do echo "waiting for mysql"; sleep 2; done;']
+      - name: wait-etcd
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.etcd.host }}.{{ .Release.Namespace }}.svc {{ .Values.etcd.service_port }}; do echo "waiting for etcd"; sleep 2; done;']
+      containers:
+      - name: service-exchange-app-manager
+        image: {{ .Values.image }}
+        imagePullPolicy: {{ .Values.image_pull_policy }}
+        command:
+          - app-manager
+        ports:
+        - containerPort: 9102
+          name: app-manager
+        env:
+        - name: service_exchange_GRPC_SHOW_ERROR_CAUSE
+          value: {{ .Values.grpc_show_error_cause | quote }}
+        - name: service_exchange_LOG_LEVEL
+          value: {{ .Values.service_exchange_log_level }}
+        - name: service_exchange_MYSQL_DATABASE
+          value: "app"
+        - name: service_exchange_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password.txt
+              name: mysql-pass
+        resources:
+          limits:
+            cpu: {{ .Values.cpu_limits }}m
+            memory: {{ .Values.memory_limits }}Mi
+          requests:
+            cpu: {{ .Values.cpu_requests }}m
+            memory: {{ .Values.memory_requests }}Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-exchange-category-manager
+  labels:
+    app: service-exchange
+    component: service-exchange-category-manager
+    version: {{ .Values.version }}
+spec:
+  selector:
+    app: service-exchange
+    component: service-exchange-category-manager
+  ports:
+  - name: service-exchange-category-manager
+    protocol: TCP
+    port: 9113
+    targetPort: 9113
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: service-exchange-category-manager-deployment
+  labels:
+    app: service-exchange
+    component: service-exchange-category-manager
+    version: {{ .Values.version }}
+spec:
+  selector:
+    matchLabels:
+      app: service-exchange
+      component: service-exchange-category-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: service-exchange
+        component: service-exchange-category-manager
+        version: {{ .Values.version }}
+    spec:
+      initContainers:
+      - name: wait-mysql
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.mysql.host }}.{{ .Release.Namespace }}.svc {{ .Values.mysql.service_port }}; do echo "waiting for mysql"; sleep 2; done;']
+      - name: wait-etcd
+        image: busybox:1.28.4
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'until nc -z {{ .Values.etcd.host }}.{{ .Release.Namespace }}.svc {{ .Values.etcd.service_port }}; do echo "waiting for etcd"; sleep 2; done;']
+      containers:
+      - name: service-exchange-category-manager
+        image: {{ .Values.image }}
+        imagePullPolicy: {{ .Values.image_pull_policy }}
+        command:
+          - category-manager
+        ports:
+        - containerPort: 9108
+          name: category-mgr
+        env:
+        - name: service_exchange_GRPC_SHOW_ERROR_CAUSE
+          value: {{ .Values.grpc_show_error_cause | quote }}
+        - name: service_exchange_LOG_LEVEL
+          value: {{ .Values.service_exchange_log_level }}
+        - name: service_exchange_MYSQL_DATABASE
+          value: "app"
+        - name: service_exchange_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password.txt
+              name: mysql-pass
+        resources:
+          limits:
+            cpu: {{ .Values.cpu_limits }}m
+            memory: {{ .Values.memory_limits }}Mi
+          requests:
+            cpu: {{ .Values.cpu_requests }}m
+            memory: {{ .Values.memory_requests }}Mi

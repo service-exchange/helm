@@ -1,0 +1,7 @@
+name: service-exchange
+home: https://service.exchange/
+version: latest
+appVersion: latest
+description: service-exchange is an open-source system to package, deploy and manage different types of applications including traditional application, microservice application and serverless applications into multiple cloud environment such as AWS, Azure, Kubernetes, QingCloud, OpenStack, VMWare etc.
+sources:
+- https://github.com/service-exchange/helm-chart

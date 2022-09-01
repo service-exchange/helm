@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-exchange-minio
+  labels:
+    app: service-exchange
+    tier: minio
+    version: {{ .Values.version }}
+spec:
+  selector:
+    app: service-exchange
+    tier: minio
+  ports:
+  - name: tcp
+    protocol: TCP
+    port: 9000
+    targetPort: 9000
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: service-exchange-minio-pvc
+  labels:
+    app: service-exchange
+    tier: minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: service-exchange-minio-deployment
+  labels:
+    app: service-exchange
+    tier: minio
+    version: {{ .Values.version }}
+spec:
+  selector:
+    matchLabels:
+      app: service-exchange
+      tier: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: service-exchange
+        tier: minio
+        version: {{ .Values.version }}
+    spec:
+      containers:
+      - name: service-exchange-minio
+        image: minio/minio:RELEASE.2018-09-25T21-34-43Z
+        imagePullPolicy: IfNotPresent
+        lifecycle:
+          postStart:
+            exec:
+              command: ["sh", "-c", "mkdir -p /data/service-exchange-attachment /data/service-exchange-internal-repo/vmbased /data/service-exchange-internal-repo/helm"]
+        args:
+          - server
+          - /data
+        env:
+        - name: MINIO_ACCESS_KEY
+          value: "service-exchangeminioaccesskey"
+        - name: MINIO_SECRET_KEY
+          value: "service-exchangeminiosecretkey"
+        ports:
+        - containerPort: 9000
+          name: minio
+        volumeMounts:
+        - name: minio-persistent-storage
+          mountPath: /data
+      volumes:
+      - name: minio-persistent-storage
+        persistentVolumeClaim:
+          claimName: service-exchange-minio-pvc

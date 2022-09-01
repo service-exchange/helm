@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-exchange-ingress
+spec:
+  tls:
+  - hosts:
+    - demo.service.exchange
+    secretName: ingress-tls
+  rules:
+  - host: demo.service.exchange
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: service-exchange-dashboard
+          servicePort: 80
